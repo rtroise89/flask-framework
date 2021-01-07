@@ -1,9 +1,10 @@
 from flask import Flask, render_template, request
 import pandas as pd
-import matplotlib.pyplot as plt
-import io, base64
 from alpha_vantage.timeseries import TimeSeries
 from werkzeug.exceptions import HTTPException
+from bokeh.plotting import figure, output_file, show
+from bokeh.embed import components
+import pandas_bokeh
 
 app = Flask(__name__)
 
@@ -20,29 +21,26 @@ def graph():
     choice = request.form.get("features")
     title = "Richard's App"
     ts = TimeSeries(key=api_key, output_format='pandas')
+
+    p = figure(width=600, height=400, x_axis_type='datetime')
     #Collect data depending on user's stock and price choices
     if choice=='close':
         data, meta_data = ts.get_daily(symbol=stock, outputsize='full')
-        df = pd.DataFrame(data['4. close'])
+        data['date_time'] = data.index
+        p.line(data['date_time'], data['4. close'], line_width=2)
     elif choice=='adj_close':
         data, meta_data = ts.get_daily_adjusted(symbol=stock, outputsize='full')
-        df = pd.DataFrame(data['5. adjusted close'])
+        data['date_time'] = data.index
+        p.line(data['date_time'], data['5. adjusted close'], line_width=2)
     elif choice=='open':
         data, meta_data = ts.get_daily(symbol=stock, outputsize='full')
-        df = pd.DataFrame(data['1. open'])
-    elif choice=='adj_open':
-        data, meta_data = ts.get_daily_adjusted(symbol=stock, outputsize='full')
-        df = pd.DataFrame(data['1. open'])
+        data['date_time'] = data.index
+        p.line(data['date_time'], data['1. open'], line_width=2)
 
-    #Plot the pandas dataframe
-    img = io.BytesIO()
-    plt.plot(df)
-    plt.savefig(img, format='png')
-    img.seek(0)
-    plot_url = base64.b64encode(img.getvalue()).decode()
-    plt.close()
 
-    return render_template("graph.html", url=plot_url, stock=stock, choice=choice)
+    script, div = components(p)
+
+    return render_template("graph.html", div=div, script=script, stock=stock, choice=choice)
 
 @app.errorhandler(Exception)
 def handle_exception(e):

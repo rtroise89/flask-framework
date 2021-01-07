@@ -1,0 +1,5 @@
+body {color: red;}
+figure {
+  display: flex;
+  justify-content: center;
+}
